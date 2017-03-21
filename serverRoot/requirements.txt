@@ -1,0 +1,7 @@
+setuptools>=10.0.0
+distribute>=0.7.3
+flask
+gevent
+gunicorn
+supervisor
+sqlalchemy

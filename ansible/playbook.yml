@@ -1,0 +1,135 @@
+---
+- hosts: all
+
+
+
+  handlers:
+    - name: append to postgresql.conf
+      shell: /bin/cat /tmp/add_to_postgresql.conf >> /etc/postgresql/9.1/main/postgresql.conf
+      become: yes
+      become_user: postgres
+
+
+    - name: enable postgresql
+      service: name=postgresql enabled=true
+
+    - name: start postgresql
+      service: name=postgresql state=started
+
+    - name: restart postgresql
+      become: yes
+      service: name=postgresql state=restarted
+
+    - name: reload postgresql
+      become: yes
+      service: name=postgresql state=reloaded
+
+  tasks:
+    - name: install setfacl support
+      become: yes
+      apt: pkg=acl
+
+    - name: update package cache
+      package: update_cache=true
+      become: yes
+
+    - name: copy in postgres conf
+      copy: src=add_to_postgresql.conf dest=/tmp/add_to_postgresql.conf
+
+    - name: ensure postgresql dependencies are installed
+      become: yes
+
+      package: name={{ item }} state=present
+      with_items:
+        - build-essential
+        - postgresql
+        - postgresql-contrib
+        - libpq-dev
+        - python-psycopg2
+        - nginx
+        - libevent-dev
+
+      notify:
+        - append to postgresql.conf
+        - enable postgresql
+        - start postgresql
+        - reload postgresql
+
+
+- hosts: all
+  become: yes
+  become_user: postgres
+
+  vars:
+    dbname: dss
+    dbuser: dss
+    dbpassword: dss
+
+  tasks:
+    - name: ensure database is created
+      postgresql_db: name={{ dbname }}
+
+    - name: ensure user has all privileges
+      postgresql_user: db={{ dbname }} name={{ dbuser }} password={{ dbpassword }}
+                       priv=ALL role_attr_flags=SUPERUSER
+
+
+- hosts: all
+  become: yes
+
+  handlers:
+    - name: start dss
+      service: name=dss state=started
+
+    - name: enable dss
+      service: name=dss enabled=true
+
+  tasks:
+    - name: install required packages
+      package: name={{ item }} state=present
+      with_items:
+        - git
+        - libffi-dev
+        - python-dev
+        - python-pip
+        - python-virtualenv
+        - python-meld3
+
+    - name: upgrade pip
+      pip: virtualenv=/opt/dss/venv name=pip state=latest
+
+    - name: install virtualenv
+      pip: virtualenv=/opt/dss/venv requirements=/opt/dss/serverRoot/requirements.txt state=present
+
+    - name: ensure login script is in profile.d
+      copy: src=dss_login.sh dest=/etc/profile.d/dss_login.sh mode=0755
+
+    - name: remove default nginx site
+      action: file path=/etc/nginx/site-enabled/default state=absent
+
+    - copy: src=configs/nginx.conf dest=/etc/nginx/nginx.conf owner=root
+
+    - name: create supervisord config folder
+      action: file dest=/etc/supervisor state=directory owner=root
+    
+    - name: create supervisord.ini
+      action: template src=configs/supervisord.ini dest=/etc/supervisor/supervisord.ini
+
+    - name: create supervisord config
+      action: template src=configs/supervisord.conf dest=/etc/supervisord.conf
+
+    - name: create supervisord init script
+      action: template src=configs/supervisord.sh dest=/etc/init.d/supervisord mode=0755
+
+    - name: start supervisord service and have it run during system startup
+      script: /opt/dss/venv/bin/supervisord
+
+    - name: start nginx service and have it run during system startup
+      action: service name=nginx state=started enabled=yes
+
+    - name: create hstore extension for dss database
+      command: psql -d dss -c 'CREATE EXTENSION IF NOT EXISTS hstore;'
+      become_user: postgres
+
+
+
