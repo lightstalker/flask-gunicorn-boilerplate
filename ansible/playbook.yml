@@ -5,7 +5,7 @@
 
   handlers:
     - name: append to postgresql.conf
-      shell: /bin/cat /tmp/add_to_postgresql.conf >> /etc/postgresql/9.1/main/postgresql.conf
+      shell: /bin/cat /tmp/add_to_postgresql.conf >> /etc/postgresql/9.4/main/postgresql.conf
       become: yes
       become_user: postgres
 
@@ -42,7 +42,7 @@
       package: name={{ item }} state=present
       with_items:
         - build-essential
-        - postgresql
+        - postgresql-9.4
         - postgresql-contrib
         - libpq-dev
         - python-psycopg2
@@ -126,6 +126,9 @@
 
     - name: start nginx service and have it run during system startup
       action: service name=nginx state=started enabled=yes
+
+    - name: start nginx service and have it run during system startup
+      action: service name=nginx state=restarted enabled=yes
 
     - name: create hstore extension for dss database
       command: psql -d dss -c 'CREATE EXTENSION IF NOT EXISTS hstore;'

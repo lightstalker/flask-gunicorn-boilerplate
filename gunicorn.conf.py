@@ -7,3 +7,4 @@ pidfile = '/tmp/gunicorn.pid'
 logfile = '/tmp/gunicorn.log'
 worker_class = 'gevent'
 debug = True
+reload = True

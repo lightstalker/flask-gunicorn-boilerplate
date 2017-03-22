@@ -5,3 +5,10 @@ gevent
 gunicorn
 supervisor
 sqlalchemy
+Flask-HTTPAuth==3.2.0
+Flask-Restless
+aniso8601==1.1.0
+pytz==2016.6.1
+python-dateutil==2.5.3
+flask_sqlalchemy
+psycopg2
